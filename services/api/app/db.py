@@ -288,6 +288,7 @@ def initialize(path: Path) -> None:
         if version < 8:
             connection.executescript(MIGRATION_8)
             connection.execute("PRAGMA user_version = 8")
+    connection.close()
 
 
 def rows(connection: sqlite3.Connection, query: str, params: tuple = ()) -> list[dict]:

@@ -12,7 +12,7 @@ The master prompt contains **11 phases (0–10)**. This status reflects local co
 - **Phase 6:** SQLite-backed reminders, contact follow-ups, notifications, recurring schedules, and a separate worker. The queue survives restarts; the worker must be running for due notifications to appear.
 - **Phase 7:** installable browser PWA shell, browser-provided speech dictation/playback. It uses the browser's speech capabilities; no local speech model or native desktop shell is included.
 - **Phase 9:** one-time device token, bounded read-only telemetry ingestion and owner disable switch. No actuator API exists.
-- **Phase 10:** configurable Secure cookie, 8-per-15-minute login throttling, authenticated database health/backup APIs, integrity check and offline restore script with a pre-restore backup.
+- **Phase 10:** configurable Secure cookie, 8-per-15-minute login throttling, authenticated database health/backup APIs, integrity check and offline restore script that migrates supported older backups and saves a pre-restore backup.
 
 ## Waiting on external setup
 

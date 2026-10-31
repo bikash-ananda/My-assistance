@@ -15,7 +15,7 @@
 | 7 — Voice and mobile | Browser/PWA slice implemented | Installable web app, browser speech dictation and playback. Native desktop shell and local STT/TTS model are not installed. |
 | 8 — VPS deployment | Isolated artifacts prepared; not deployed | API/web/worker Compose files use a dedicated volume/network and loopback web bind. Docker and VPS state are unverified; no server changes made. |
 | 9 — Advanced capabilities | Read-only telemetry implemented | One-time device tokens, bounded sensor ingestion, latest readings, disable switch. No device hardware, computer vision, Nvidia inference, or actuation configured. |
-| 10 — Production hardening | Local safeguards implemented; production review pending | Secure-cookie option, login throttling, audit, health/integrity, database snapshot, restore workflow. Restore rehearsal, TLS/proxy review, external threat review, and production recovery remain pending. |
+| 10 — Production hardening | Local safeguards implemented; production review pending | Secure-cookie option, login throttling, audit, health/integrity, database snapshot, and a restore workflow that upgrades supported older schemas. Restore rehearsal, TLS/proxy review, external threat review, and production recovery remain pending. |
 
 ## Phase 0 findings
 
