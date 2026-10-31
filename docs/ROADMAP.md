@@ -20,7 +20,7 @@
 ## Phase 0 findings
 
 - Python 3.14.10 was installed for the current Windows user after explicit approval. See [PC hardware audit](PC_HARDWARE_AUDIT.md).
-- Node.js and Git are available. Docker, Ollama, and hardware details were not verified.
+- Node.js and Git are available. A restricted local query reports 4 logical processors and about 8 GiB RAM; GPU/VRAM and total disk capacity remain unverified. Docker and Ollama are not on PATH.
 - Codex-connected plugins are separate from the Bikash AI runtime. No Figma file was supplied or changed.
 
 ## Verification

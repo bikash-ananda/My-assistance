@@ -15,16 +15,16 @@
 | Item | Result |
 | --- | --- |
 | Windows edition/version | Unverified |
-| CPU and core count | Unknown |
-| Installed RAM | Unknown |
-| GPU, driver, VRAM | Unknown |
-| CUDA/ROCm | Unknown |
-| Disk size/free space | Unknown |
+| CPU and core count | 4 logical processors reported; physical core count not verified |
+| Installed RAM | Approximately 7.7 GiB available to the operating system |
+| GPU, driver, VRAM | Not available through this restricted audit |
+| CUDA/ROCm | `nvidia-smi` not found on PATH |
+| Disk size/free space | Total capacity not verified |
 
-CIM/WMI and systeminfo returned “Access denied.” A registry query reported Windows 10 Pro, 21H2, build 22000, an inconsistent combination not treated as reliable OS identification.
+CIM/WMI and systeminfo returned “Access denied.” Registry/runtime queries provided the CPU count and available memory, but display adapter details remained unavailable. No Docker or Ollama command was found on PATH.
 
 ## Local model feasibility
 
-Not assessed. Do not choose model sizes or enable Ollama until CPU, RAM, GPU, VRAM, disk, and driver details are verified. The app defaults to no provider and makes no model request.
+Still unverified. The reported 4 logical processors and approximately 8 GiB RAM are insufficient evidence to choose a private model without GPU/VRAM details. The app remains paused with no provider configured and makes no model request.
 
 To complete the hardware check, use Windows Settings → System → About for OS/CPU/RAM and Task Manager → Performance for GPU, GPU memory, and disk capacity/free space.
