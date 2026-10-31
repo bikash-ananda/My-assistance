@@ -423,11 +423,11 @@ def test_owner_can_check_health_and_download_consistent_database_backup(tmp_path
     health = client.get("/api/v1/maintenance/status")
     assert health.status_code == 200
     assert health.json()["database"] == "ok"
-    assert health.json()["schema_version"] == 7
+    assert health.json()["schema_version"] == 8
     backup = client.get("/api/v1/maintenance/backup")
     assert backup.status_code == 200
     backup_path = tmp_path / "downloaded.sqlite3"
     backup_path.write_bytes(backup.content)
     with sqlite3.connect(backup_path) as snapshot:
         assert snapshot.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
-        assert snapshot.execute("PRAGMA user_version").fetchone()[0] == 7
+        assert snapshot.execute("PRAGMA user_version").fetchone()[0] == 8

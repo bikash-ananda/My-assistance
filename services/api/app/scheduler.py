@@ -32,6 +32,13 @@ def run_once(database_path) -> int:
             "INSERT INTO notifications(id,job_id,title,body,created_at) VALUES(?,?,?,?,?)",
             (str(uuid4()), job["id"], job["title"], payload.get("body", ""), now),
         )
+        followup = db.row(connection, "SELECT id FROM business_contacts WHERE follow_up_job_id=?", (job["id"],))
+        if followup:
+            connection.execute("UPDATE business_contacts SET follow_up_job_id=NULL,next_follow_up_at=NULL,updated_at=? WHERE id=?", (now, followup["id"]))
+            connection.execute(
+                "INSERT INTO audit_events(id,action,target_type,target_id,detail_json,created_at) VALUES(?,?,?,?,?,?)",
+                (str(uuid4()), "business.contact.follow_up_notified", "contact", followup["id"], json.dumps({"cleared_fields": ["next_follow_up_at"]}), now),
+            )
         if job["interval_seconds"]:
             next_run = (datetime.now(timezone.utc) + timedelta(seconds=job["interval_seconds"])).isoformat()
             connection.execute(

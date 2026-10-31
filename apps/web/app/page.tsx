@@ -884,7 +884,7 @@ export default function Home() {
           {tab === "business" && (
             <div className="section-page">
               <div className="section-heading"><div><p className="eyebrow">PRIVATE, LOCAL BUSINESS TRACKING</p><h1>Business workspace</h1><p className="muted">Keep contacts, follow-ups, and sales opportunities in this owner-only workspace.</p></div><span className="count-card">{opportunities.filter((item) => !["won", "lost"].includes(item.stage)).length}<small>open opportunities</small></span></div>
-              <div className="usage-note"><div className="note-icon"><Icon name="lock"/></div><div><strong>Stored locally</strong><p>Business records stay in this workspace and are not added to assistant prompts or shared with connected accounts.</p></div></div>
+              <div className="usage-note"><div className="note-icon"><Icon name="lock"/></div><div><strong>Stored locally</strong><p>Business records stay in this workspace and are not added to assistant prompts or shared with connected accounts. Follow-up dates create in-app reminders when the worker is running.</p></div></div>
               <form className="project-form" onSubmit={addBusinessContact}>
                 <h2>Add a contact</h2>
                 <div className="form-grid"><label>Name<input value={contactName} onChange={(event) => setContactName(event.target.value)} required maxLength={120} placeholder="Contact name"/></label><label>Organization<input value={contactOrganization} onChange={(event) => setContactOrganization(event.target.value)} maxLength={120} placeholder="Company or group"/></label></div>

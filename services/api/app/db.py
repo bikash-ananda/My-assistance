@@ -228,7 +228,12 @@ CREATE INDEX IF NOT EXISTS sales_opportunities_active_idx ON sales_opportunities
 CREATE INDEX IF NOT EXISTS sales_opportunities_contact_idx ON sales_opportunities(contact_id, updated_at);
 """
 
-DB_SCHEMA_VERSION = 7
+MIGRATION_8 = """
+ALTER TABLE business_contacts ADD COLUMN follow_up_job_id TEXT REFERENCES jobs(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS business_contacts_follow_up_idx ON business_contacts(follow_up_job_id);
+"""
+
+DB_SCHEMA_VERSION = 8
 
 
 def connect(path: Path) -> sqlite3.Connection:
@@ -279,6 +284,10 @@ def initialize(path: Path) -> None:
         if version < 7:
             connection.executescript(MIGRATION_7)
             connection.execute("PRAGMA user_version = 7")
+            version = 7
+        if version < 8:
+            connection.executescript(MIGRATION_8)
+            connection.execute("PRAGMA user_version = 8")
 
 
 def rows(connection: sqlite3.Connection, query: str, params: tuple = ()) -> list[dict]:

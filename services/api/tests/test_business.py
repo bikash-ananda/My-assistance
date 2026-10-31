@@ -1,12 +1,14 @@
 import hashlib
 import json
 import sqlite3
+from datetime import datetime, timedelta, timezone
 
 from fastapi.testclient import TestClient
 
 from app.config import Settings
 from app.main import create_app
 from app.security import make_session
+from app.scheduler import run_once
 
 
 def make_client(tmp_path):
@@ -73,3 +75,33 @@ def test_archiving_contact_keeps_linked_opportunity_and_audit(tmp_path):
     assert client.get("/api/v1/business/contacts").json() == []
     assert client.get("/api/v1/business/opportunities").json()[0]["contact_name"] == "Keep relationship"
     assert opportunity["contact_id"] == contact["id"]
+
+
+def test_follow_up_reminder_notifies_and_clears_due_date(tmp_path):
+    client, settings = make_client(tmp_path)
+    due = (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat()
+    contact = client.post("/api/v1/business/contacts", json={"name": "Due contact", "next_follow_up_at": due}).json()
+    job_id = contact["follow_up_job_id"]
+    assert job_id
+    assert run_once(settings.database_path) == 1
+    refreshed = client.get("/api/v1/business/contacts").json()[0]
+    assert refreshed["next_follow_up_at"] is None
+    assert refreshed["follow_up_job_id"] is None
+    notifications = client.get("/api/v1/notifications").json()
+    assert notifications[0]["title"] == "Follow up: Due contact"
+    assert notifications[0]["body"] == "Scheduled contact follow-up."
+
+
+def test_rescheduling_or_archiving_contact_cancels_pending_follow_up(tmp_path):
+    client, _ = make_client(tmp_path)
+    due = (datetime.now(timezone.utc) + timedelta(days=2)).isoformat()
+    contact = client.post("/api/v1/business/contacts", json={"name": "Reschedule", "next_follow_up_at": due}).json()
+    old_job = contact["follow_up_job_id"]
+    later = (datetime.now(timezone.utc) + timedelta(days=4)).isoformat()
+    updated = client.patch(f"/api/v1/business/contacts/{contact['id']}", json={"next_follow_up_at": later}).json()
+    assert updated["follow_up_job_id"] != old_job
+    with sqlite3.connect(_.database_path) as connection:
+        assert connection.execute("SELECT status FROM jobs WHERE id=?", (old_job,)).fetchone()[0] == "cancelled"
+    client.post(f"/api/v1/business/contacts/{contact['id']}/archive")
+    with sqlite3.connect(_.database_path) as connection:
+        assert connection.execute("SELECT status FROM jobs WHERE id=?", (updated["follow_up_job_id"],)).fetchone()[0] == "cancelled"

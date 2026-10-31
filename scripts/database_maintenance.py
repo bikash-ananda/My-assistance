@@ -16,8 +16,8 @@ def verify(connection: sqlite3.Connection) -> None:
     version = connection.execute("PRAGMA user_version").fetchone()[0]
     if result != "ok":
         raise RuntimeError("SQLite integrity check failed.")
-    if version != 5:
-        raise RuntimeError(f"Expected schema version 7; backup has version {version}.")
+    if version != 8:
+        raise RuntimeError(f"Expected schema version 8; backup has version {version}.")
 
 
 def backup(database: Path) -> Path:

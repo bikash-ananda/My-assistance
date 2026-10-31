@@ -2,7 +2,7 @@
 
 ## Local business workspace
 
-- Owner-only contacts with email, phone, organization, private notes, optional follow-up time, and archive controls.
+- Owner-only contacts with email, phone, organization, private notes, follow-up reminders, and archive controls. Due dates enter the Phase 6 in-app reminder queue; the worker creates a local notification only.
 - Sales opportunities linked to contacts with amount/currency, expected close date, six pipeline stages, and archive controls.
 - Changes are audited without copying contact details into audit records. CRM data stays in SQLite and is never added to assistant prompts.
 

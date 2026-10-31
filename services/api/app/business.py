@@ -87,6 +87,23 @@ def audit(connection, action: str, kind: str, item_id: str, fields: list[str], a
     )
 
 
+def queue_contact_followup(connection, contact_id: str, name: str, due_at: str | None, previous_job_id: str | None, at: str) -> str | None:
+    if previous_job_id:
+        connection.execute(
+            "UPDATE jobs SET status='cancelled',updated_at=? WHERE id=? AND status='pending'",
+            (at, previous_job_id),
+        )
+    if not due_at:
+        return None
+    job_id = str(uuid4())
+    title = ("Follow up: " + name)[:120]
+    connection.execute(
+        "INSERT INTO jobs(id,job_type,title,payload_json,due_at,interval_seconds,status,created_at,updated_at) VALUES(?,'reminder',?,?,?,NULL,'pending',?,?)",
+        (job_id, title, json.dumps({"body": "Scheduled contact follow-up."}), due_at, at, at),
+    )
+    return job_id
+
+
 class ContactCreate(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     email: str = Field(default="", max_length=254)
@@ -154,6 +171,8 @@ def register_business_routes(app: FastAPI, settings: Settings, require_owner) ->
                 "INSERT INTO business_contacts(id,name,email,phone,organization,notes,next_follow_up_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)",
                 (item_id, values["name"], values["email"], values["phone"], values["organization"], values["notes"], values["next_follow_up_at"], at, at),
             )
+            followup_job = queue_contact_followup(connection, item_id, values["name"], values["next_follow_up_at"], None, at)
+            connection.execute("UPDATE business_contacts SET follow_up_job_id=? WHERE id=?", (followup_job, item_id))
             audit(connection, "business.contact.created", "contact", item_id, sorted(values), at)
             return db.row(connection, "SELECT * FROM business_contacts WHERE id=?", (item_id,)) or {}
 
@@ -172,6 +191,9 @@ def register_business_routes(app: FastAPI, settings: Settings, require_owner) ->
                 "UPDATE business_contacts SET name=?,email=?,phone=?,organization=?,notes=?,next_follow_up_at=?,updated_at=? WHERE id=?",
                 tuple(normalized[key] for key in CONTACT_FIELDS) + (at, contact_id),
             )
+            if "name" in values or "next_follow_up_at" in values:
+                followup_job = queue_contact_followup(connection, contact_id, normalized["name"], normalized["next_follow_up_at"], current.get("follow_up_job_id"), at)
+                connection.execute("UPDATE business_contacts SET follow_up_job_id=? WHERE id=?", (followup_job, contact_id))
             audit(connection, "business.contact.updated", "contact", contact_id, sorted(values), at)
             return db.row(connection, "SELECT * FROM business_contacts WHERE id=?", (contact_id,)) or {}
 
@@ -179,9 +201,12 @@ def register_business_routes(app: FastAPI, settings: Settings, require_owner) ->
     def archive_contact(contact_id: str, _: None = Depends(require_owner)) -> dict:
         at = stamp()
         with db.connect(settings.database_path) as connection:
-            changed = connection.execute("UPDATE business_contacts SET archived_at=?,updated_at=? WHERE id=? AND archived_at IS NULL", (at, at, contact_id)).rowcount
-            if not changed:
+            current = db.row(connection, "SELECT follow_up_job_id FROM business_contacts WHERE id=? AND archived_at IS NULL", (contact_id,))
+            if not current:
                 raise HTTPException(404, "Active contact not found.")
+            connection.execute("UPDATE business_contacts SET archived_at=?,updated_at=? WHERE id=?", (at, at, contact_id))
+            if current["follow_up_job_id"]:
+                connection.execute("UPDATE jobs SET status='cancelled',updated_at=? WHERE id=? AND status='pending'", (at, current["follow_up_job_id"]))
             audit(connection, "business.contact.archived", "contact", contact_id, [], at)
         return {"id": contact_id, "archived": True}
 

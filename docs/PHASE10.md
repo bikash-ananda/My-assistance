@@ -10,7 +10,7 @@ After signing in, open **Tools & safety** to see SQLite integrity, schema versio
 - Restore: stop the API and reminder worker, then run `./scripts/restore.ps1 -BackupPath <path>` and type `RESTORE` at the prompt.
 - Restore validates SQLite integrity and schema version and saves the current database before replacement.
 
-Run the restore rehearsal against a disposable copy before production. The script expects schema version 7; migration changes should update that check.
+Run the restore rehearsal against a disposable copy before production. The script expects schema version 8; migration changes should update that check.
 
 ## Production work still required
 

@@ -11,7 +11,7 @@ The API and development web server bind to loopback. The database is local SQLit
 
 ## Foundation features
 
-Owner password hashing uses PBKDF2-HMAC-SHA256 with 600,000 rounds. Sessions are signed HttpOnly SameSite=Lax cookies, with an HTTPS Secure-cookie option. Projects, chats, usage, selective memory, task plans, tool approvals, reminders, telemetry, Google OAuth connections, and maintenance APIs were added in later phases. The current database schema version is 7.
+Owner password hashing uses PBKDF2-HMAC-SHA256 with 600,000 rounds. Sessions are signed HttpOnly SameSite=Lax cookies, with an HTTPS Secure-cookie option. Projects, chats, usage, selective memory, task plans, tool approvals, reminders, telemetry, Google OAuth connections, and maintenance APIs were added in later phases. The current database schema version is 8.
 
 ## Current limits
 
