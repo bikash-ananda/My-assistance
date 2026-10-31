@@ -117,6 +117,7 @@ export default function Home() {
   const [summary, setSummary] = useState("");
   const [planRequest, setPlanRequest] = useState("");
   const [planAgent, setPlanAgent] = useState("auto");
+  const [planMessage, setPlanMessage] = useState("");
   const [memoryCategory, setMemoryCategory] = useState("owner_preference");
   const [memoryKind, setMemoryKind] = useState("confirmed");
   const [memoryTitle, setMemoryTitle] = useState("");
@@ -378,9 +379,9 @@ export default function Home() {
   async function createAgentPlan(event: FormEvent) {
     event.preventDefault();
     if (!planRequest.trim()) return;
-    setBusy(true); setError("");
+    setBusy(true); setError(""); setPlanMessage("");
     try {
-      const result = await api<{ task: Task; steps: Step[] }>("/agents/plan", {
+      const result = await api<{ task: Task; steps: Step[]; planner: string }>("/agents/plan", {
         method: "POST",
         body: JSON.stringify({
           request: planRequest,
@@ -389,6 +390,7 @@ export default function Home() {
         })
       });
       setTasks((current) => [{ ...result.task, steps: result.steps }, ...current]);
+      setPlanMessage(result.planner === "local_model" ? "Drafted by your configured local model; review each step before acting." : "Drafted from the built-in specialist workflow.");
       setPlanRequest("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not create an agent plan.");
@@ -818,6 +820,7 @@ export default function Home() {
                 </div>
                 <label>What should be planned?<textarea value={planRequest} onChange={(event) => setPlanRequest(event.target.value)} maxLength={8000} rows={3} placeholder="Describe the outcome. The local router assigns a specialist; you can change it above."/></label>
                 <button className="primary" disabled={busy || !planRequest.trim()}><Icon name="plus"/>Create plan</button>
+                {planMessage && <p className="muted" role="status">{planMessage}</p>}
               </form>
               <div className="task-list">
                 <h2 className="table-title">Tracked tasks</h2>

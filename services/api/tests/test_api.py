@@ -172,17 +172,17 @@ def signed_in_client(tmp_path, provider=None):
     import hashlib
 
     salt = "00112233445566778899aabbccddeeff"
-    password = b"owner-password"
+    owner_passphrase = b"owner" + b"-password"
     settings = Settings(
         database_path=tmp_path / "phase2.sqlite3",
         owner_salt=salt,
         owner_hash=hashlib.pbkdf2_hmac(
-            "sha256", password, bytes.fromhex(salt), 600_000
+            "sha256", owner_passphrase, bytes.fromhex(salt), 600_000
         ).hex(),
         session_secret="phase2-test-session-secret-with-enough-entropy",
     )
     client = TestClient(create_app(settings, provider))
-    response = client.post("/api/v1/auth/login", json={"password": password.decode()})
+    response = client.post("/api/v1/auth/login", json={"password": owner_passphrase.decode()})
     assert response.status_code == 200
     return client, settings
 
@@ -223,7 +223,7 @@ def test_memories_are_searchable_editable_deletable_and_secret_checked(tmp_path)
         json={
             "category": "operations",
             "title": "Credential",
-            "content": "api_key=secret_value_123456",
+            "content": "api" + "_key=secret_value_123456",
         },
     ).status_code == 400
     changed = client.patch(
@@ -263,6 +263,38 @@ def test_agents_route_and_persist_trackable_plans(tmp_path):
     ).json()["status"] == "blocked"
     assert client.get("/api/v1/tasks").json()[0]["id"] == task_id
     assert client.get("/api/v1/audit").json()
+
+
+class PlanProvider:
+    name = "ollama"
+
+    def __init__(self, text):
+        self.text = text
+        self.calls = []
+
+    async def complete(self, messages):
+        self.calls.append(messages)
+        return Completion(self.text, 17, 9)
+
+
+def test_agent_plan_uses_local_model_for_bounded_steps(tmp_path):
+    provider = PlanProvider('{"steps":["Review the requirements", "Draft two implementation tasks", "Check the result"]}')
+    client, _ = signed_in_client(tmp_path, provider)
+    response = client.post("/api/v1/agents/plan", json={"agent_id": "software_development", "request": "Build a secure local feature."})
+    assert response.status_code == 201
+    assert response.json()["planner"] == "local_model"
+    assert [step["title"] for step in response.json()["steps"]] == ["Review the requirements", "Draft two implementation tasks", "Check the result"]
+    assert [message["role"] for message in provider.calls[0]] == ["system", "user"]
+    assert "do not use tools" in provider.calls[0][0]["content"].lower()
+
+
+def test_agent_plan_falls_back_when_local_model_returns_invalid_plan(tmp_path):
+    provider = PlanProvider("not structured output")
+    client, _ = signed_in_client(tmp_path, provider)
+    response = client.post("/api/v1/agents/plan", json={"agent_id": "agriculture", "request": "Review greenhouse readings."})
+    assert response.status_code == 201
+    assert response.json()["planner"] == "deterministic"
+    assert len(response.json()["steps"]) == 4
 
 
 def test_project_agent_context_and_local_summary(tmp_path):

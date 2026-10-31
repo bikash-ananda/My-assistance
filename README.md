@@ -18,7 +18,7 @@ The first two services bind to loopback. The database and `.env` remain on this 
 ## What works locally
 
 - Owner login, project registry, persistent chats, measured provider usage, compact context, and private owner-edited memory.
-- Ten specialist profiles, task routing, and plan tracking.
+- Ten specialist profiles, task routing, and tracked plans; the configured local model can draft bounded plan steps with a deterministic fallback.
 - A local tool registry for safe text files, Git status, and Python version. File creation needs approval bound to the exact preview. Emergency stop revokes queued tool actions.
 - Durable reminders and in-app notifications, including scheduled CRM follow-ups. The reminder worker does not run shell commands or send external messages.
 - Private local contact and sales-opportunity tracking; follow-up dates create in-app reminders when the worker is running, and records stay out of assistant prompts.
