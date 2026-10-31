@@ -28,6 +28,13 @@ type RecognitionChunk = ArrayLike<{ transcript: string }> & { isFinal: boolean }
 type RecognitionEventLike = { resultIndex: number; results: ArrayLike<RecognitionChunk> };
 type BrowserRecognition = { lang: string; continuous: boolean; interimResults: boolean; onresult: ((event: RecognitionEventLike) => void) | null; onerror: (() => void) | null; onend: (() => void) | null; start(): void; stop(): void };
 
+function localDateTime(value: string | null): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "";
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
+
 async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch("/api/v1" + path, {
     ...init,
@@ -77,6 +84,8 @@ export default function Home() {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [contacts, setContacts] = useState<BusinessContact[]>([]);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [editingContact, setEditingContact] = useState<BusinessContact | null>(null);
+  const [editingOpportunity, setEditingOpportunity] = useState<Opportunity | null>(null);
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
@@ -538,6 +547,19 @@ export default function Home() {
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not save contact."); }
   }
 
+  function updateContactDraft(field: "name" | "email" | "phone" | "organization" | "notes" | "next_follow_up_at", value: string) {
+    setEditingContact((current) => current ? { ...current, [field]: value } : current);
+  }
+
+  async function saveContactEdit(event: FormEvent, id: string) {
+    event.preventDefault();
+    if (!editingContact) return;
+    try {
+      await api("/business/contacts/" + id, { method: "PATCH", body: JSON.stringify({ name: editingContact.name, email: editingContact.email, phone: editingContact.phone, organization: editingContact.organization, notes: editingContact.notes, next_follow_up_at: editingContact.next_follow_up_at ? new Date(editingContact.next_follow_up_at).toISOString() : null }) });
+      setEditingContact(null); await refreshWorkspace();
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not update contact."); }
+  }
+
   async function archiveBusinessContact(id: string) {
     if (!window.confirm("Archive this contact? Linked opportunities will remain.")) return;
     try { await api("/business/contacts/" + id + "/archive", { method: "POST" }); await refreshWorkspace(); }
@@ -552,7 +574,24 @@ export default function Home() {
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not save opportunity."); }
   }
 
-  async function updateOpportunity(id: string, values: Partial<Pick<Opportunity, "stage">>) {
+  function updateOpportunityDraft(field: "title" | "contact_id" | "currency" | "stage" | "expected_close_date" | "notes", value: string) {
+    setEditingOpportunity((current) => current ? { ...current, [field]: value } : current);
+  }
+
+  function updateOpportunityAmount(value: string) {
+    setEditingOpportunity((current) => current ? { ...current, amount: Number(value) || 0 } : current);
+  }
+
+  async function saveOpportunityEdit(event: FormEvent, id: string) {
+    event.preventDefault();
+    if (!editingOpportunity) return;
+    try {
+      await api("/business/opportunities/" + id, { method: "PATCH", body: JSON.stringify({ contact_id: editingOpportunity.contact_id || null, title: editingOpportunity.title, amount: editingOpportunity.amount, currency: editingOpportunity.currency, stage: editingOpportunity.stage, expected_close_date: editingOpportunity.expected_close_date || null, notes: editingOpportunity.notes }) });
+      setEditingOpportunity(null); await refreshWorkspace();
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not update opportunity."); }
+  }
+
+  async function updateOpportunity(id: string, values: Partial<Pick<Opportunity, "stage" | "title" | "contact_id" | "amount" | "currency" | "expected_close_date" | "notes">>) {
     try { await api("/business/opportunities/" + id, { method: "PATCH", body: JSON.stringify(values) }); await refreshWorkspace(); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Could not update opportunity."); }
   }
@@ -893,7 +932,7 @@ export default function Home() {
                 <button className="primary"><Icon name="plus"/>Save contact</button>
               </form>
               <h2 className="table-title">Contacts</h2>
-              <div className="business-list">{contacts.map((item) => <article className="approval-card" key={item.id}><div className="task-top"><div><span className="task-agent">{item.organization || "Contact"}</span><h3>{item.name}</h3>{item.email && <p className="muted">{item.email}</p>}{item.phone && <p className="muted">{item.phone}</p>}{item.next_follow_up_at && <small>Follow up {new Date(item.next_follow_up_at).toLocaleString()}</small>}{item.notes && <p className="muted">{item.notes}</p>}</div><button className="text-button danger-link" onClick={() => void archiveBusinessContact(item.id)}>Archive</button></div></article>)}{!contacts.length && <div className="empty-card"><strong>No contacts yet</strong><p>Add a contact to start a private business list.</p></div>}</div>
+              <div className="business-list">{contacts.map((item) => <article className="approval-card" key={item.id}><div className="task-top"><div><span className="task-agent">{item.organization || "Contact"}</span><h3>{item.name}</h3>{item.email && <p className="muted">{item.email}</p>}{item.phone && <p className="muted">{item.phone}</p>}{item.next_follow_up_at && <small>Follow up {new Date(item.next_follow_up_at).toLocaleString()}</small>}{item.notes && <p className="muted">{item.notes}</p>}</div><div className="business-actions"><button className="text-button" onClick={() => setEditingContact({ ...item, next_follow_up_at: localDateTime(item.next_follow_up_at) })}>Edit</button><button className="text-button danger-link" onClick={() => void archiveBusinessContact(item.id)}>Archive</button></div></div>{editingContact?.id === item.id && <form className="business-edit" onSubmit={(event) => void saveContactEdit(event, item.id)}><div className="form-grid"><label>Name<input value={editingContact.name} onChange={(event) => updateContactDraft("name", event.target.value)} required maxLength={120}/></label><label>Organization<input value={editingContact.organization} onChange={(event) => updateContactDraft("organization", event.target.value)} maxLength={120}/></label></div><div className="form-grid"><label>Email<input type="email" value={editingContact.email} onChange={(event) => updateContactDraft("email", event.target.value)} maxLength={254}/></label><label>Phone<input value={editingContact.phone} onChange={(event) => updateContactDraft("phone", event.target.value)} maxLength={40}/></label></div><div className="form-grid"><label>Notes<textarea value={editingContact.notes} onChange={(event) => updateContactDraft("notes", event.target.value)} maxLength={1200} rows={2}/></label><label>Next follow-up<input type="datetime-local" value={editingContact.next_follow_up_at || ""} onChange={(event) => updateContactDraft("next_follow_up_at", event.target.value)}/></label></div><div className="business-actions"><button className="primary">Save changes</button><button type="button" className="text-button" onClick={() => setEditingContact(null)}>Cancel</button></div></form>}</article>)}{!contacts.length && <div className="empty-card"><strong>No contacts yet</strong><p>Add a contact to start a private business list.</p></div>}</div>
               <form className="project-form business-form" onSubmit={addOpportunity}>
                 <h2>Track an opportunity</h2>
                 <div className="form-grid"><label>Title<input value={opportunityTitle} onChange={(event) => setOpportunityTitle(event.target.value)} required maxLength={140} placeholder="Project or sale"/></label><label>Contact<select value={opportunityContact} onChange={(event) => setOpportunityContact(event.target.value)}><option value="">No linked contact</option>{contacts.map((item) => <option key={item.id} value={item.id}>{item.name}{item.organization ? " · " + item.organization : ""}</option>)}</select></label></div>
@@ -903,7 +942,7 @@ export default function Home() {
                 <button className="primary"><Icon name="plus"/>Save opportunity</button>
               </form>
               <h2 className="table-title">Sales pipeline</h2>
-              <div className="business-list">{opportunities.map((item) => <article className="approval-card" key={item.id}><div className="task-top"><div><span className="task-agent">{item.contact_name || "Unlinked contact"}{item.expected_close_date ? " · Closes " + new Date(item.expected_close_date + "T00:00:00Z").toLocaleDateString() : ""}</span><h3>{item.title}</h3><p className="muted">{new Intl.NumberFormat(undefined, { style: "currency", currency: item.currency, maximumFractionDigits: 0 }).format(item.amount)} · {item.currency}{item.notes ? " · " + item.notes : ""}</p></div><button className="text-button danger-link" onClick={() => void archiveOpportunity(item.id)}>Archive</button></div><div className="business-stage"><label>Stage<select value={item.stage} onChange={(event) => void updateOpportunity(item.id, { stage: event.target.value })}><option value="lead">Lead</option><option value="qualified">Qualified</option><option value="proposal">Proposal</option><option value="negotiation">Negotiation</option><option value="won">Won</option><option value="lost">Lost</option></select></label></div></article>)}{!opportunities.length && <div className="empty-card"><strong>No opportunities yet</strong><p>Record a possible sale or project to follow its stage.</p></div>}</div>
+              <div className="business-list">{opportunities.map((item) => <article className="approval-card" key={item.id}><div className="task-top"><div><span className="task-agent">{item.contact_name || "Unlinked contact"}{item.expected_close_date ? " · Closes " + new Date(item.expected_close_date + "T00:00:00Z").toLocaleDateString() : ""}</span><h3>{item.title}</h3><p className="muted">{new Intl.NumberFormat(undefined, { style: "currency", currency: item.currency, maximumFractionDigits: 0 }).format(item.amount)} · {item.currency}{item.notes ? " · " + item.notes : ""}</p></div><div className="business-actions"><button className="text-button" onClick={() => setEditingOpportunity(item)}>Edit</button><button className="text-button danger-link" onClick={() => void archiveOpportunity(item.id)}>Archive</button></div></div><div className="business-stage"><label>Stage<select value={item.stage} onChange={(event) => void updateOpportunity(item.id, { stage: event.target.value })}><option value="lead">Lead</option><option value="qualified">Qualified</option><option value="proposal">Proposal</option><option value="negotiation">Negotiation</option><option value="won">Won</option><option value="lost">Lost</option></select></label></div>{editingOpportunity?.id === item.id && <form className="business-edit" onSubmit={(event) => void saveOpportunityEdit(event, item.id)}><div className="form-grid"><label>Title<input value={editingOpportunity.title} onChange={(event) => updateOpportunityDraft("title", event.target.value)} required maxLength={140}/></label><label>Contact<select value={editingOpportunity.contact_id || ""} onChange={(event) => updateOpportunityDraft("contact_id", event.target.value)}><option value="">No linked contact</option>{contacts.map((contact) => <option key={contact.id} value={contact.id}>{contact.name}</option>)}</select></label></div><div className="form-grid"><label>Amount (whole units)<input type="number" min="0" max="1000000000000" step="1" value={editingOpportunity.amount} onChange={(event) => updateOpportunityAmount(event.target.value)} required/></label><label>Currency<input value={editingOpportunity.currency} onChange={(event) => updateOpportunityDraft("currency", event.target.value.toUpperCase())} required minLength={3} maxLength={3}/></label></div><div className="form-grid"><label>Stage<select value={editingOpportunity.stage} onChange={(event) => updateOpportunityDraft("stage", event.target.value)}><option value="lead">Lead</option><option value="qualified">Qualified</option><option value="proposal">Proposal</option><option value="negotiation">Negotiation</option><option value="won">Won</option><option value="lost">Lost</option></select></label><label>Expected close date<input type="date" value={editingOpportunity.expected_close_date || ""} onChange={(event) => updateOpportunityDraft("expected_close_date", event.target.value)}/></label></div><label>Notes<textarea value={editingOpportunity.notes} onChange={(event) => updateOpportunityDraft("notes", event.target.value)} maxLength={1200} rows={2}/></label><div className="business-actions"><button className="primary">Save changes</button><button type="button" className="text-button" onClick={() => setEditingOpportunity(null)}>Cancel</button></div></form>}</article>)}{!opportunities.length && <div className="empty-card"><strong>No opportunities yet</strong><p>Record a possible sale or project to follow its stage.</p></div>}</div>
             </div>
           )}
           {tab === "devices" && (
