@@ -1,0 +1,11 @@
+{
+  "name": "Bikash AI Private Workspace",
+  "short_name": "Bikash AI",
+  "description": "A private, owner-controlled AI workspace",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f8f6",
+  "theme_color": "#176d5a",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

@@ -21,6 +21,7 @@ The first two services bind to loopback. The database and `.env` remain on this 
 - Ten specialist profiles, task routing, and plan tracking.
 - A local tool registry for safe text files, Git status, and Python version. File creation needs approval bound to the exact preview. Emergency stop revokes queued tool actions.
 - Durable reminders and in-app notifications. The reminder worker does not run shell commands or send external messages.
+- Owner-initiated, read-only Gmail and Calendar OAuth with encrypted refresh-token storage; requires your own Google client and consent.
 - Installable PWA shell, browser dictation/playback, and read-only device telemetry ingestion.
 - Database health checks, downloadable snapshots, and offline backup/restore scripts.
 
@@ -31,7 +32,7 @@ Each chat request is limited to 8 messages and 12,000 characters. Memory is save
 From the project root:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest services\api\tests -q -p no:cacheprovider --basetemp .runtime\pytest-tmp
+.\.venv\Scripts\python.exe -m pytest services\api\tests -q -p no:cacheprovider
 ```
 
 From `apps/web`:
@@ -45,5 +46,4 @@ npm run build
 
 An isolated Docker Compose setup is in `docker-compose.yml`; it binds the web port to `127.0.0.1:3080`, keeps the API private, and persists data in its own named volume. Docker is not installed or verified on this PC, and the VPS has not been inspected. Do not attach it to an existing proxy or deploy until its ports, networks, resources, backups, and TLS route are reviewed.
 
-Gmail/Calendar OAuth, GitHub/browser MCP connectors, native desktop speech, and physical device control are not connected. See the phase status before enabling anything external.
-
+GitHub/browser MCP connectors, native desktop speech, and physical device control are not connected. Gmail/Calendar remain disconnected until you add private Google OAuth client values and consent. See the phase status before enabling any external integration.

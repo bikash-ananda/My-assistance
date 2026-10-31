@@ -1,0 +1,14 @@
+.git
+.env
+.env.*
+!.env.example
+.venv
+node_modules
+.next
+.runtime
+backups
+__pycache__
+*.py[cod]
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm

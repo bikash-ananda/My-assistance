@@ -1,0 +1,67 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    restart: unless-stopped
+    environment:
+      BIKASH_DATABASE_PATH: /data/bikash.sqlite3
+      BIKASH_OWNER_SALT: ${BIKASH_OWNER_SALT:?Run scripts/setup.ps1 first}
+      BIKASH_OWNER_HASH: ${BIKASH_OWNER_HASH:?Run scripts/setup.ps1 first}
+      BIKASH_SESSION_SECRET: ${BIKASH_SESSION_SECRET:?Run scripts/setup.ps1 first}
+      BIKASH_SESSION_MINUTES: ${BIKASH_SESSION_MINUTES:-720}
+      BIKASH_COOKIE_SECURE: ${BIKASH_COOKIE_SECURE:-false}
+      MODEL_PROVIDER: ${MODEL_PROVIDER:-none}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://127.0.0.1:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-}
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
+      GOOGLE_OAUTH_REDIRECT_URI: ${GOOGLE_OAUTH_REDIRECT_URI:-}
+      BIKASH_GOOGLE_TOKEN_ENCRYPTION_KEY: ${BIKASH_GOOGLE_TOKEN_ENCRYPTION_KEY:-}
+    volumes:
+      - bikash_data:/data
+    expose:
+      - "8000"
+    networks:
+      - bikash_private
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+  worker:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    command: ["python", "-m", "app.worker", "--poll-seconds", "5"]
+    restart: unless-stopped
+    environment:
+      BIKASH_DATABASE_PATH: /data/bikash.sqlite3
+      BIKASH_OWNER_SALT: ${BIKASH_OWNER_SALT:?Run scripts/setup.ps1 first}
+      BIKASH_OWNER_HASH: ${BIKASH_OWNER_HASH:?Run scripts/setup.ps1 first}
+      BIKASH_SESSION_SECRET: ${BIKASH_SESSION_SECRET:?Run scripts/setup.ps1 first}
+    volumes:
+      - bikash_data:/data
+    networks:
+      - bikash_private
+    depends_on:
+      api:
+        condition: service_healthy
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${BIKASH_WEB_PORT:-3080}:3000"
+    networks:
+      - bikash_private
+    depends_on:
+      api:
+        condition: service_healthy
+networks:
+  bikash_private:
+    internal: true
+volumes:
+  bikash_data:
