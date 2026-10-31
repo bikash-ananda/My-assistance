@@ -197,7 +197,38 @@ CREATE TABLE IF NOT EXISTS google_connections (
 );
 """
 
-DB_SCHEMA_VERSION = 6
+MIGRATION_7 = """
+CREATE TABLE IF NOT EXISTS business_contacts (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL DEFAULT '',
+  phone TEXT NOT NULL DEFAULT '',
+  organization TEXT NOT NULL DEFAULT '',
+  notes TEXT NOT NULL DEFAULT '',
+  next_follow_up_at TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  archived_at TEXT
+);
+CREATE INDEX IF NOT EXISTS business_contacts_active_idx ON business_contacts(archived_at, updated_at);
+CREATE TABLE IF NOT EXISTS sales_opportunities (
+  id TEXT PRIMARY KEY,
+  contact_id TEXT REFERENCES business_contacts(id) ON DELETE SET NULL,
+  title TEXT NOT NULL,
+  amount INTEGER NOT NULL DEFAULT 0 CHECK (amount >= 0),
+  currency TEXT NOT NULL DEFAULT 'USD',
+  stage TEXT NOT NULL CHECK (stage IN ('lead','qualified','proposal','negotiation','won','lost')),
+  expected_close_date TEXT,
+  notes TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  archived_at TEXT
+);
+CREATE INDEX IF NOT EXISTS sales_opportunities_active_idx ON sales_opportunities(archived_at, stage, updated_at);
+CREATE INDEX IF NOT EXISTS sales_opportunities_contact_idx ON sales_opportunities(contact_id, updated_at);
+"""
+
+DB_SCHEMA_VERSION = 7
 
 
 def connect(path: Path) -> sqlite3.Connection:
@@ -244,6 +275,10 @@ def initialize(path: Path) -> None:
         if version < 6:
             connection.executescript(MIGRATION_6)
             connection.execute("PRAGMA user_version = 6")
+            version = 6
+        if version < 7:
+            connection.executescript(MIGRATION_7)
+            connection.execute("PRAGMA user_version = 7")
 
 
 def rows(connection: sqlite3.Connection, query: str, params: tuple = ()) -> list[dict]:

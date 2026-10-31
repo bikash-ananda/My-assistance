@@ -12,3 +12,6 @@
 @media(max-width:650px){.sensor-row{grid-template-columns:1fr auto}.sensor-row small{grid-column:1/-1}}
 .composer-actions{display:flex;align-items:center;gap:8px}.voice-button,.voice-inline{border:1px solid #e0e8e3;background:#fff;border-radius:8px;padding:8px 10px;color:#5b7166;font-size:10px}.voice-button.listening{border-color:#bd7168;background:#fff2ef;color:#9d493e}.voice-inline{margin-top:8px;padding:5px 8px;font-size:9px}.composer-bottom>span{max-width:70%}
 @media(max-width:650px){.composer-bottom>span{max-width:55%;line-height:1.4}.voice-button{padding:7px 8px}}
+
+.business-list{display:grid;gap:9px}.business-list .approval-card{padding:14px}.business-list .muted{margin:4px 0;font-size:11px;line-height:1.5}.business-list small{display:block;margin:7px 0;color:#87928c;font-size:10px}.business-form{margin-top:28px}.business-stage{display:flex;justify-content:flex-end;margin-top:10px}.business-stage label{display:grid;grid-template-columns:auto minmax(130px,1fr);align-items:center;gap:8px;color:#7b8781;font-size:10px}
+@media(max-width:650px){.business-stage{justify-content:stretch}.business-stage label{width:100%;grid-template-columns:auto 1fr}}

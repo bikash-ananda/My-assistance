@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from . import db
 from .config import Settings
+from .business import register_business_routes
 from .google_integration import register_google_routes
 from .knowledge import contains_secret
 
@@ -26,6 +27,7 @@ class ReminderBody(BaseModel):
 
 def register_phase4_routes(app: FastAPI, settings: Settings, require_owner) -> None:
     register_google_routes(app, settings, require_owner)
+    register_business_routes(app, settings, require_owner)
 
     @app.get("/api/v1/jobs")
     def list_jobs(_: None = Depends(require_owner)) -> list[dict]:

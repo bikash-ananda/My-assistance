@@ -30,6 +30,7 @@ Each tool declares purpose, schema, allowed target, risk, approval policy, timeo
 - Prefer Windows Credential Manager locally or restrictive OS-backed secret storage on Linux.
 - Redact tokens, authorization headers, private prompts, and secrets from logs.
 - Encrypt Google refresh tokens with the private `.env` key; never send tokens to a model. Uvicorn access logging is disabled to keep OAuth callback codes out of API logs; reverse-proxy logs must redact callback query strings before internet deployment.
+- Local CRM contacts and opportunity records remain in SQLite and are not included in assistant prompts or external requests.
 - Database downloads and local backups are plain SQLite files. Store them privately; encrypted/off-site backup and retention policy remain production work.
 
 ## Untrusted content

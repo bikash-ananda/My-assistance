@@ -7,7 +7,7 @@
 | Web | Next.js 16.4.3, React 19.1.10, TypeScript 5.9.3 |
 | Runtime | Node.js 24.22.1; Python 3.14.10 per-user install |
 | API | FastAPI 0.160.0, Uvicorn 0.40.0 |
-| Database | SQLite standard library, schema version 6 |
+| Database | SQLite standard library, schema version 7 |
 | HTTP client | HTTPX 0.28.1, used only by the explicitly enabled Ollama adapter |
 | Tests | Pytest 8.4.2 |
 | Local inference | Ollama adapter, disabled by default; hardware audit required |

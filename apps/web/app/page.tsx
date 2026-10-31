@@ -16,12 +16,14 @@ type Approval = { id: string; tool_id: string; project_id: string; args: Record<
 type Job = { id: string; title: string; due_at: string; interval_seconds: number | null; status: string; payload?: { body: string } };
 type Notification = { id: string; title: string; body: string; read_at: string | null; created_at: string };
 type Integration = { id: string; name: string; service: "gmail" | "calendar"; state: string; scopes: string[]; connected_at: string | null; can_connect: boolean; connected: boolean };
+type BusinessContact = { id: string; name: string; email: string; phone: string; organization: string; notes: string; next_follow_up_at: string | null; updated_at: string };
+type Opportunity = { id: string; contact_id: string | null; contact_name?: string | null; title: string; amount: number; currency: string; stage: string; expected_close_date: string | null; notes: string; updated_at: string };
 type GoogleMessage = { id: string; from: string; subject: string; date: string; snippet: string; untrusted: true };
 type GoogleEvent = { id: string; summary: string; start: { dateTime?: string; date?: string }; end: { dateTime?: string; date?: string }; location: string; untrusted: true };
 type SensorSample = { sensor: string; value: number; unit: string; recorded_at: string };
 type Device = { id: string; name: string; active: boolean; created_at: string; latest: SensorSample[] };
 type Maintenance = { database: string; schema_version: number; size_bytes: number; pending_jobs: number };
-type Tab = "chat" | "projects" | "usage" | "agents" | "memory" | "tools" | "automation" | "devices";
+type Tab = "chat" | "projects" | "usage" | "agents" | "memory" | "tools" | "automation" | "devices" | "business";
 type RecognitionChunk = ArrayLike<{ transcript: string }> & { isFinal: boolean };
 type RecognitionEventLike = { resultIndex: number; results: ArrayLike<RecognitionChunk> };
 type BrowserRecognition = { lang: string; continuous: boolean; interimResults: boolean; onresult: ((event: RecognitionEventLike) => void) | null; onerror: (() => void) | null; onend: (() => void) | null; start(): void; stop(): void };
@@ -73,6 +75,21 @@ export default function Home() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [integrations, setIntegrations] = useState<Integration[]>([]);
+  const [contacts, setContacts] = useState<BusinessContact[]>([]);
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [contactName, setContactName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [contactOrganization, setContactOrganization] = useState("");
+  const [contactNotes, setContactNotes] = useState("");
+  const [contactFollowUp, setContactFollowUp] = useState("");
+  const [opportunityTitle, setOpportunityTitle] = useState("");
+  const [opportunityContact, setOpportunityContact] = useState("");
+  const [opportunityAmount, setOpportunityAmount] = useState("0");
+  const [opportunityCurrency, setOpportunityCurrency] = useState("USD");
+  const [opportunityStage, setOpportunityStage] = useState("lead");
+  const [opportunityClose, setOpportunityClose] = useState("");
+  const [opportunityNotes, setOpportunityNotes] = useState("");
   const [integrationBusy, setIntegrationBusy] = useState("");
   const [gmailPreview, setGmailPreview] = useState<GoogleMessage[] | null>(null);
   const [calendarPreview, setCalendarPreview] = useState<GoogleEvent[] | null>(null);
@@ -146,7 +163,7 @@ export default function Home() {
   }
 
   async function refreshWorkspace() {
-    const [p, c, u, a, t, m, toolState, approvalState, j, n, integrationState, d, system] = await Promise.all([
+    const [p, c, u, a, t, m, toolState, approvalState, j, n, integrationState, d, system, contactState, opportunityState] = await Promise.all([
       api<Project[]>("/projects"),
       api<Conversation[]>("/conversations"),
       api<Usage>("/usage"),
@@ -159,7 +176,9 @@ export default function Home() {
       api<Notification[]>("/notifications?limit=50"),
       api<Integration[]>("/integrations"),
       api<Device[]>("/devices"),
-      api<Maintenance>("/maintenance/status")
+      api<Maintenance>("/maintenance/status"),
+      api<BusinessContact[]>("/business/contacts"),
+      api<Opportunity[]>("/business/opportunities")
     ]);
     setProjects(p);
     setConversations(c);
@@ -173,6 +192,8 @@ export default function Home() {
     setJobs(j.map((item) => ({ ...item, payload: item.payload || JSON.parse(item.payload_json || "{}") })));
     setNotifications(n);
     setIntegrations(integrationState);
+    setContacts(contactState);
+    setOpportunities(opportunityState);
     setDevices(d);
     setMaintenance(system);
     if (activeId && c.some((item) => item.id === activeId)) {
@@ -509,6 +530,39 @@ export default function Home() {
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not save reminder."); }
   }
 
+  async function addBusinessContact(event: FormEvent) {
+    event.preventDefault();
+    try {
+      await api("/business/contacts", { method: "POST", body: JSON.stringify({ name: contactName, email: contactEmail, phone: contactPhone, organization: contactOrganization, notes: contactNotes, next_follow_up_at: contactFollowUp ? new Date(contactFollowUp).toISOString() : null }) });
+      setContactName(""); setContactEmail(""); setContactPhone(""); setContactOrganization(""); setContactNotes(""); setContactFollowUp(""); await refreshWorkspace();
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not save contact."); }
+  }
+
+  async function archiveBusinessContact(id: string) {
+    if (!window.confirm("Archive this contact? Linked opportunities will remain.")) return;
+    try { await api("/business/contacts/" + id + "/archive", { method: "POST" }); await refreshWorkspace(); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "Could not archive contact."); }
+  }
+
+  async function addOpportunity(event: FormEvent) {
+    event.preventDefault();
+    try {
+      await api("/business/opportunities", { method: "POST", body: JSON.stringify({ contact_id: opportunityContact || null, title: opportunityTitle, amount: Number(opportunityAmount) || 0, currency: opportunityCurrency, stage: opportunityStage, expected_close_date: opportunityClose || null, notes: opportunityNotes }) });
+      setOpportunityTitle(""); setOpportunityContact(""); setOpportunityAmount("0"); setOpportunityStage("lead"); setOpportunityClose(""); setOpportunityNotes(""); await refreshWorkspace();
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not save opportunity."); }
+  }
+
+  async function updateOpportunity(id: string, values: Partial<Pick<Opportunity, "stage">>) {
+    try { await api("/business/opportunities/" + id, { method: "PATCH", body: JSON.stringify(values) }); await refreshWorkspace(); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "Could not update opportunity."); }
+  }
+
+  async function archiveOpportunity(id: string) {
+    if (!window.confirm("Archive this opportunity?")) return;
+    try { await api("/business/opportunities/" + id + "/archive", { method: "POST" }); await refreshWorkspace(); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "Could not archive opportunity."); }
+  }
+
   async function markNotificationRead(id: string) {
     try { await api("/notifications/" + id + "/read", { method: "POST" }); await refreshWorkspace(); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Could not update notification."); }
@@ -613,6 +667,7 @@ export default function Home() {
         <nav className="nav">
           <button className={tab === "chat" ? "nav-item selected" : "nav-item"} onClick={() => setTab("chat")}><Icon name="chat"/>Assistant</button>
           <button className={tab === "projects" ? "nav-item selected" : "nav-item"} onClick={() => setTab("projects")}><Icon name="folder"/>Projects<span className="nav-count">{projects.length}</span></button>
+          <button className={tab === "business" ? "nav-item selected" : "nav-item"} onClick={() => setTab("business")}><Icon name="folder"/>Business<span className="nav-count">{contacts.length}</span></button>
           <button className={tab === "usage" ? "nav-item selected" : "nav-item"} onClick={() => setTab("usage")}><Icon name="chart"/>Usage</button>
           <button className={tab === "agents" ? "nav-item selected" : "nav-item"} onClick={() => setTab("agents")}><Icon name="brain"/>Agents & tasks<span className="nav-count">{tasks.filter((task) => task.status !== "done" && task.status !== "cancelled").length}</span></button>
           <button className={tab === "memory" ? "nav-item selected" : "nav-item"} onClick={() => setTab("memory")}><Icon name="memory"/>Memory<span className="nav-count">{memories.length}</span></button>
@@ -638,7 +693,7 @@ export default function Home() {
 
       <section className="workspace">
         <header className="topbar">
-          <div className="crumb"><span>Workspace</span><span className="slash">/</span><strong>{tab === "chat" ? "Assistant" : tab === "projects" ? "Projects" : tab === "usage" ? "Usage" : tab === "agents" ? "Agents & tasks" : tab === "tools" ? "Tools & safety" : tab === "automation" ? "Automation" : tab === "devices" ? "Sensors" : "Memory"}</strong></div>
+          <div className="crumb"><span>Workspace</span><span className="slash">/</span><strong>{tab === "chat" ? "Assistant" : tab === "projects" ? "Projects" : tab === "usage" ? "Usage" : tab === "agents" ? "Agents & tasks" : tab === "tools" ? "Tools & safety" : tab === "automation" ? "Automation" : tab === "devices" ? "Sensors" : tab === "business" ? "Business" : "Memory"}</strong></div>
           <div className="top-actions"><span className="model-pill"><i className={setup.chat_ready ? "dot green" : "dot amber"}/>{setup.chat_ready ? "Model connected" : "Model paused"}</span><button className="avatar">B</button></div>
         </header>
         <div className="content">
@@ -824,6 +879,31 @@ export default function Home() {
               </article>)}</div>
               {gmailPreview !== null && <><h2 className="table-title">Recent Gmail preview</h2><p className="muted">Read-only headers and short snippets are fetched on request and are not stored here. Treat message text as external content.</p><div className="approval-list">{gmailPreview.map((mail) => <article className="approval-card" key={mail.id}><span className="task-agent">{mail.from} · {mail.date}</span><h3>{mail.subject}</h3><p className="muted">{mail.snippet}</p></article>)}{!gmailPreview.length && <div className="empty-card"><strong>No matching messages</strong><p>The last seven days returned no messages.</p></div>}</div></>}
               {calendarPreview !== null && <><h2 className="table-title">Upcoming calendar events</h2><div className="approval-list">{calendarPreview.map((event) => { const start = event.start.dateTime || event.start.date || ""; return <article className="approval-card" key={event.id}><span className="task-agent">{start ? new Date(start).toLocaleString() : "Time not provided"}</span><h3>{event.summary}</h3>{event.location && <p className="muted">{event.location}</p>}</article>; })}{!calendarPreview.length && <div className="empty-card"><strong>No upcoming events</strong><p>No events were returned for the next 14 days.</p></div>}</div></>}
+            </div>
+          )}
+          {tab === "business" && (
+            <div className="section-page">
+              <div className="section-heading"><div><p className="eyebrow">PRIVATE, LOCAL BUSINESS TRACKING</p><h1>Business workspace</h1><p className="muted">Keep contacts, follow-ups, and sales opportunities in this owner-only workspace.</p></div><span className="count-card">{opportunities.filter((item) => !["won", "lost"].includes(item.stage)).length}<small>open opportunities</small></span></div>
+              <div className="usage-note"><div className="note-icon"><Icon name="lock"/></div><div><strong>Stored locally</strong><p>Business records stay in this workspace and are not added to assistant prompts or shared with connected accounts.</p></div></div>
+              <form className="project-form" onSubmit={addBusinessContact}>
+                <h2>Add a contact</h2>
+                <div className="form-grid"><label>Name<input value={contactName} onChange={(event) => setContactName(event.target.value)} required maxLength={120} placeholder="Contact name"/></label><label>Organization<input value={contactOrganization} onChange={(event) => setContactOrganization(event.target.value)} maxLength={120} placeholder="Company or group"/></label></div>
+                <div className="form-grid"><label>Email<input type="email" value={contactEmail} onChange={(event) => setContactEmail(event.target.value)} maxLength={254} placeholder="name@example.com"/></label><label>Phone<input value={contactPhone} onChange={(event) => setContactPhone(event.target.value)} maxLength={40} placeholder="Optional"/></label></div>
+                <div className="form-grid"><label>Notes<textarea value={contactNotes} onChange={(event) => setContactNotes(event.target.value)} maxLength={1200} rows={2} placeholder="Context for your own reference"/></label><label>Next follow-up<input type="datetime-local" value={contactFollowUp} onChange={(event) => setContactFollowUp(event.target.value)}/></label></div>
+                <button className="primary"><Icon name="plus"/>Save contact</button>
+              </form>
+              <h2 className="table-title">Contacts</h2>
+              <div className="business-list">{contacts.map((item) => <article className="approval-card" key={item.id}><div className="task-top"><div><span className="task-agent">{item.organization || "Contact"}</span><h3>{item.name}</h3>{item.email && <p className="muted">{item.email}</p>}{item.phone && <p className="muted">{item.phone}</p>}{item.next_follow_up_at && <small>Follow up {new Date(item.next_follow_up_at).toLocaleString()}</small>}{item.notes && <p className="muted">{item.notes}</p>}</div><button className="text-button danger-link" onClick={() => void archiveBusinessContact(item.id)}>Archive</button></div></article>)}{!contacts.length && <div className="empty-card"><strong>No contacts yet</strong><p>Add a contact to start a private business list.</p></div>}</div>
+              <form className="project-form business-form" onSubmit={addOpportunity}>
+                <h2>Track an opportunity</h2>
+                <div className="form-grid"><label>Title<input value={opportunityTitle} onChange={(event) => setOpportunityTitle(event.target.value)} required maxLength={140} placeholder="Project or sale"/></label><label>Contact<select value={opportunityContact} onChange={(event) => setOpportunityContact(event.target.value)}><option value="">No linked contact</option>{contacts.map((item) => <option key={item.id} value={item.id}>{item.name}{item.organization ? " · " + item.organization : ""}</option>)}</select></label></div>
+                <div className="form-grid"><label>Amount (whole units)<input type="number" min="0" max="1000000000000" step="1" value={opportunityAmount} onChange={(event) => setOpportunityAmount(event.target.value)} required/></label><label>Currency<input value={opportunityCurrency} onChange={(event) => setOpportunityCurrency(event.target.value.toUpperCase())} required minLength={3} maxLength={3} placeholder="USD"/></label></div>
+                <div className="form-grid"><label>Stage<select value={opportunityStage} onChange={(event) => setOpportunityStage(event.target.value)}><option value="lead">Lead</option><option value="qualified">Qualified</option><option value="proposal">Proposal</option><option value="negotiation">Negotiation</option><option value="won">Won</option><option value="lost">Lost</option></select></label><label>Expected close date<input type="date" value={opportunityClose} onChange={(event) => setOpportunityClose(event.target.value)}/></label></div>
+                <label>Notes<textarea value={opportunityNotes} onChange={(event) => setOpportunityNotes(event.target.value)} maxLength={1200} rows={2} placeholder="Optional private note"/></label>
+                <button className="primary"><Icon name="plus"/>Save opportunity</button>
+              </form>
+              <h2 className="table-title">Sales pipeline</h2>
+              <div className="business-list">{opportunities.map((item) => <article className="approval-card" key={item.id}><div className="task-top"><div><span className="task-agent">{item.contact_name || "Unlinked contact"}{item.expected_close_date ? " · Closes " + new Date(item.expected_close_date + "T00:00:00Z").toLocaleDateString() : ""}</span><h3>{item.title}</h3><p className="muted">{new Intl.NumberFormat(undefined, { style: "currency", currency: item.currency, maximumFractionDigits: 0 }).format(item.amount)} · {item.currency}{item.notes ? " · " + item.notes : ""}</p></div><button className="text-button danger-link" onClick={() => void archiveOpportunity(item.id)}>Archive</button></div><div className="business-stage"><label>Stage<select value={item.stage} onChange={(event) => void updateOpportunity(item.id, { stage: event.target.value })}><option value="lead">Lead</option><option value="qualified">Qualified</option><option value="proposal">Proposal</option><option value="negotiation">Negotiation</option><option value="won">Won</option><option value="lost">Lost</option></select></label></div></article>)}{!opportunities.length && <div className="empty-card"><strong>No opportunities yet</strong><p>Record a possible sale or project to follow its stage.</p></div>}</div>
             </div>
           )}
           {tab === "devices" && (

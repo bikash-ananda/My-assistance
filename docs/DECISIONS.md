@@ -15,3 +15,4 @@
 - 2026-10-31: Keep Compose isolated and loopback-bound; do not deploy or modify the shared VPS proxy without inspection.
 - 2026-10-31: Implement Google OAuth as owner-initiated read-only Gmail and Calendar connections; keep each service disconnected until the owner supplies a client and grants consent.
 - 2026-10-31: Encrypt Google refresh tokens with a setup-generated Fernet key kept only in the ignored `.env`; never send them to a model.
+- 2026-10-31: Keep local CRM contact details and sales records out of assistant prompts; expose them only through owner-authenticated business screens and APIs.

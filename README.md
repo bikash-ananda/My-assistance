@@ -21,6 +21,7 @@ The first two services bind to loopback. The database and `.env` remain on this 
 - Ten specialist profiles, task routing, and plan tracking.
 - A local tool registry for safe text files, Git status, and Python version. File creation needs approval bound to the exact preview. Emergency stop revokes queued tool actions.
 - Durable reminders and in-app notifications. The reminder worker does not run shell commands or send external messages.
+- Private local contact and sales-opportunity tracking with follow-up dates; records stay out of assistant prompts.
 - Owner-initiated, read-only Gmail and Calendar OAuth with encrypted refresh-token storage; requires your own Google client and consent.
 - Installable PWA shell, browser dictation/playback, and read-only device telemetry ingestion.
 - Database health checks, downloadable snapshots, and offline backup/restore scripts.

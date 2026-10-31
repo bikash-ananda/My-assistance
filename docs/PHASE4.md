@@ -1,6 +1,13 @@
-# Phase 4 — Google business connections
+# Phase 4 — Business operations
 
-## Implemented
+## Local business workspace
+
+- Owner-only contacts with email, phone, organization, private notes, optional follow-up time, and archive controls.
+- Sales opportunities linked to contacts with amount/currency, expected close date, six pipeline stages, and archive controls.
+- Changes are audited without copying contact details into audit records. CRM data stays in SQLite and is never added to assistant prompts.
+
+## Google connections
+
 
 - Owner-only OAuth authorization-code flow with single-use state, PKCE, a ten-minute state expiry, and separate Gmail and Calendar consent.
 - Read-only scopes: Gmail messages and Calendar events. The app does not send mail, create invitations, or change calendar events.
