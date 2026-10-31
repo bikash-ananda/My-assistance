@@ -45,12 +45,12 @@ def prepare_restore(source_path: Path) -> tuple[tempfile.TemporaryDirectory, Pat
         raise
 
 
-def copy_database(source_path: Path, destination_path: Path) -> None:
+def copy_database(source_path: Path, destination_path: Path, *, allow_older: bool = False) -> None:
     """Copy and validate in a short-lived frame so Windows releases the file handle."""
     with closing(sqlite3.connect(source_path, timeout=10)) as source:
         with closing(sqlite3.connect(destination_path, timeout=10)) as target:
             source.backup(target)
-            verify(target)
+            verify(target, allow_older=allow_older)
 
 
 def backup(database: Path) -> Path:
@@ -62,7 +62,7 @@ def backup(database: Path) -> Path:
     destination = destination_dir / name
     with sqlite3.connect(database, timeout=10) as source, sqlite3.connect(destination) as target:
         source.backup(target)
-        verify(target)
+        verify(target, allow_older=True)
     return destination
 
 
@@ -84,7 +84,7 @@ def restore(database: Path, source_path: Path) -> None:
         try:
             copy_database(prepared_path, database)
         except Exception:
-            copy_database(pre_restore, database)
+            copy_database(pre_restore, database, allow_older=True)
             raise
         print(f"Workspace restored. Previous data saved to: {pre_restore}")
     finally:

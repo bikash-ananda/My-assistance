@@ -47,3 +47,39 @@ def test_restore_rejects_a_backup_from_a_newer_release(tmp_path):
         connection.execute("PRAGMA user_version=99")
     with pytest.raises(RuntimeError, match="not supported"):
         maintenance.prepare_restore(selected)
+
+
+def test_backup_keeps_a_supported_older_schema(tmp_path, monkeypatch):
+    older = tmp_path / "older-live.sqlite3"
+    make_v6_backup(older)
+    monkeypatch.setattr(maintenance, "ROOT", tmp_path)
+    saved = maintenance.backup(older)
+    with sqlite3.connect(saved) as connection:
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == 6
+
+
+def test_restore_failure_rolls_back_an_older_live_database(tmp_path, monkeypatch):
+    selected = tmp_path / "selected.sqlite3"
+    live = tmp_path / "live.sqlite3"
+    make_v6_backup(selected)
+    make_v6_backup(live)
+    with sqlite3.connect(live) as connection:
+        connection.execute("UPDATE projects SET name='Must survive' WHERE id='restored-project'")
+    monkeypatch.setattr(maintenance, "ROOT", tmp_path)
+    monkeypatch.setattr("builtins.input", lambda _prompt: "RESTORE")
+    real_copy = maintenance.copy_database
+    attempts = 0
+
+    def fail_first_copy(source, destination, *, allow_older=False):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise RuntimeError("simulated restore copy failure")
+        return real_copy(source, destination, allow_older=allow_older)
+
+    monkeypatch.setattr(maintenance, "copy_database", fail_first_copy)
+    with pytest.raises(RuntimeError, match="simulated restore copy failure"):
+        maintenance.restore(live, selected)
+    with sqlite3.connect(live) as connection:
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == 6
+        assert connection.execute("SELECT name FROM projects WHERE id='restored-project'").fetchone()[0] == "Must survive"
